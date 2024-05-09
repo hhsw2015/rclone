@@ -10,9 +10,17 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        job_name: ['linux', 'windows']
+        job_name: ['mac_arm64', 'linux', 'windows']
 
         include:
+
+          - job_name: mac_arm64
+            os: macos-latest
+            go: '>=1.22.0-rc.1'
+            gotags: 'cmount'
+            build_flags: '-include "^darwin/arm64" -cgo -macos-arch arm64 -cgo-cflags=-I/usr/local/include -cgo-ldflags=-L/usr/local/lib'
+            deploy: true
+
           - job_name: linux
             os: ubuntu-latest
             go: '>=1.22.0-rc.1'
@@ -53,6 +61,19 @@ jobs:
           echo 'BUILD_ARGS=${{ matrix.build_args }}' >> $GITHUB_ENV
           if [[ "${{ matrix.cgo }}" != "" ]]; then echo 'CGO_ENABLED=${{ matrix.cgo }}' >> $GITHUB_ENV ; fi
 
+      - name: Install Libraries on macOS
+        shell: bash
+        run: |
+          # https://github.com/Homebrew/brew/issues/15621#issuecomment-1619266788
+          # https://github.com/orgs/Homebrew/discussions/4612#discussioncomment-6319008
+          unset HOMEBREW_NO_INSTALL_FROM_API
+          brew untap --force homebrew/core
+          brew untap --force homebrew/cask
+          brew update
+          brew install --cask macfuse
+          brew install git-annex
+        if: matrix.os == 'macos-latest'
+        
       - name: Install Libraries on Linux
         shell: bash
         run: |
